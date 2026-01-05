@@ -23,43 +23,73 @@ export const Slider: React.FC<SliderProps> = ({
   unit = '',
 }) => {
   const [isFocused, setIsFocused] = useState(false)
-  
-  const percentage = ((value - min) / (max - min)) * 100
-  const isDefault = value === 0
+  const [isEditing, setIsEditing] = useState(false)
+
+  const range = max - min
+  const zeroPoint = (-min / range) * 100
+  const thumbPercent = ((value - min) / range) * 100
+  const isDefault = Math.abs(value) < 0.01
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = parseFloat(e.target.value)
+    if (!isNaN(newValue)) {
+      onChange(Math.max(min, Math.min(max, newValue)))
+    }
+  }
 
   return (
-    <div className="mb-5">
+    <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
-        <label className="text-sm font-medium text-gray-700">{label}</label>
+        <label className="text-sm font-semibold text-slate-700 select-none">
+          {label}
+        </label>
         <div className="flex items-center gap-2">
-          <input
-            type="number"
-            value={value.toFixed(step < 1 ? 2 : 0)}
-            onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-            className="w-16 px-2 py-1 text-xs text-right border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            step={step}
-            min={min}
-            max={max}
-          />
+          {isEditing ? (
+            <input
+              type="number"
+              value={value.toFixed(step < 1 ? 1 : 0)}
+              onChange={handleInputChange}
+              onBlur={() => setIsEditing(false)}
+              onKeyDown={(e) => e.key === 'Enter' && setIsEditing(false)}
+              className="w-16 px-2 py-1 text-xs text-right border border-indigo-400 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+              step={step}
+              min={min}
+              max={max}
+              autoFocus
+            />
+          ) : (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="w-16 px-2 py-1 text-xs text-right text-slate-700 bg-white/70 border border-slate-200 rounded-md hover:shadow-sm transition"
+            >
+              {value.toFixed(step < 1 ? 1 : 0)}{unit}
+            </button>
+          )}
           <button
             onClick={onReset}
             disabled={isDefault}
-            className="text-xs text-gray-400 hover:text-blue-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            title="Reset"
+            className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-indigo-500 disabled:opacity-20 disabled:cursor-not-allowed transition-colors rounded-lg hover:bg-slate-100"
+            title="Reset to default"
           >
-            ↺
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
           </button>
         </div>
       </div>
-      
-      <div className="relative">
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-blue-400 to-blue-500 transition-all duration-150"
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
-        
+
+      <div className="relative h-9 flex items-center">
+        <div className="absolute inset-x-0 h-1 bg-slate-200 rounded-full" />
+        <div className="absolute left-1/2 -translate-x-1/2 w-px h-4 bg-slate-300" />
+
+        <div
+          className="absolute h-1 bg-gradient-to-r from-indigo-400 via-blue-500 to-sky-400 rounded-full transition-all duration-150"
+          style={{
+            width: `${Math.abs(thumbPercent - zeroPoint)}%`,
+            left: value >= 0 ? `${zeroPoint}%` : `${thumbPercent}%`,
+          }}
+        />
+
         <input
           type="range"
           min={min}
@@ -69,14 +99,14 @@ export const Slider: React.FC<SliderProps> = ({
           onChange={(e) => onChange(parseFloat(e.target.value))}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="absolute inset-0 w-full h-2 opacity-0 cursor-pointer"
+          className="absolute inset-0 w-full opacity-0 cursor-pointer z-10"
         />
-        
+
         <div
-          className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 rounded-full shadow-sm transition-all duration-150 pointer-events-none ${
-            isFocused ? 'border-blue-500 scale-110' : 'border-gray-300'
+          className={`absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-white border rounded-full shadow-md transition-all duration-100 pointer-events-none ${
+            isFocused ? 'border-indigo-400 shadow-indigo-100 scale-110' : 'border-slate-200'
           }`}
-          style={{ left: `calc(${percentage}% - 8px)` }}
+          style={{ left: `calc(${thumbPercent}% - 10px)` }}
         />
       </div>
     </div>

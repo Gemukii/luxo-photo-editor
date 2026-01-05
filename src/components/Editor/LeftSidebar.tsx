@@ -1,20 +1,25 @@
 'use client'
 import React from 'react'
+import { useEditorStore } from '@/store/editorStore'
 
 interface SidebarIconProps {
   icon: React.ReactNode
   label: string
   active?: boolean
   onClick?: () => void
+  disabled?: boolean
 }
 
-const SidebarIcon: React.FC<SidebarIconProps> = ({ icon, label, active, onClick }) => (
+const SidebarIcon: React.FC<SidebarIconProps> = ({ icon, label, active, onClick, disabled }) => (
   <button
     onClick={onClick}
-    className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all duration-200 ${
+    disabled={disabled}
+    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all duration-200 border ${
       active
-        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg'
-        : 'text-gray-600 hover:bg-gray-100'
+        ? 'bg-gradient-to-br from-indigo-500 to-blue-500 text-white shadow-lg shadow-indigo-200 border-transparent'
+        : disabled
+        ? 'text-slate-300 cursor-not-allowed border-slate-100'
+        : 'text-slate-600 bg-white/80 border-slate-200 hover:-translate-y-0.5 hover:shadow-md'
     }`}
     title={label}
   >
@@ -23,19 +28,26 @@ const SidebarIcon: React.FC<SidebarIconProps> = ({ icon, label, active, onClick 
 )
 
 export const LeftSidebar: React.FC = () => {
-  const [activeTab, setActiveTab] = React.useState('adjust')
+  const { activeTab, setActiveTab, currentImage, setShowExportModal } = useEditorStore()
+
+  const handleExport = () => {
+    if (currentImage) {
+      setShowExportModal(true)
+    }
+  }
 
   return (
-    <aside className="w-16 bg-white shadow-sm flex flex-col items-center py-4 gap-2">
+    <aside className="w-16 bg-white/70 backdrop-blur-xl border border-white/70 shadow-lg shadow-indigo-200/30 rounded-3xl flex flex-col items-center py-6 gap-3">
       <SidebarIcon
         icon={
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
           </svg>
         }
-        label="Files"
-        active={activeTab === 'files'}
-        onClick={() => setActiveTab('files')}
+        label="Adjustments"
+        active={activeTab === 'adjust'}
+        onClick={() => setActiveTab('adjust')}
+        disabled={!currentImage}
       />
       
       <SidebarIcon
@@ -44,21 +56,25 @@ export const LeftSidebar: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
           </svg>
         }
-        label="Crop"
+        label="Crop & Rotate"
         active={activeTab === 'crop'}
         onClick={() => setActiveTab('crop')}
+        disabled={!currentImage}
       />
       
       <SidebarIcon
         icon={
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         }
         label="Presets"
         active={activeTab === 'presets'}
         onClick={() => setActiveTab('presets')}
+        disabled={!currentImage}
       />
+      
+      <div className="flex-1" />
       
       <SidebarIcon
         icon={
@@ -67,8 +83,9 @@ export const LeftSidebar: React.FC = () => {
           </svg>
         }
         label="Export"
-        active={activeTab === 'export'}
-        onClick={() => setActiveTab('export')}
+        active={false}
+        onClick={handleExport}
+        disabled={!currentImage}
       />
     </aside>
   )
