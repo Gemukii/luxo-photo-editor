@@ -1,7 +1,27 @@
 import React from 'react'
 
-export default function Badge({children}:{children:React.ReactNode}){
+interface BadgeProps {
+  children: React.ReactNode
+  variant?: 'success' | 'warning' | 'info'
+  className?: string
+}
+
+export const Badge: React.FC<BadgeProps> = ({
+  children,
+  variant = 'info',
+  className = '',
+}) => {
+  const variants = {
+    success: 'bg-green-100 text-green-700 border-green-200',
+    warning: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    info: 'bg-blue-100 text-blue-700 border-blue-200',
+  }
+
   return (
-    <span style={{background:'#083240',padding:'4px 8px',borderRadius:999,fontSize:12}}>{children}</span>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${variants[variant]} ${className}`}
+    >
+      {children}
+    </span>
   )
 }
