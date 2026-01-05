@@ -1,26 +1,24 @@
+'use client'
 import React from 'react'
-import LeftSidebar from './LeftSidebar'
-import TopToolbar from './TopToolbar'
-import EditorCanvas from './EditorCanvas'
-import RightPanel from './RightPanel'
+import { LeftSidebar } from './LeftSidebar'
+import { RightPanel } from './RightPanel'
+import { TopToolbar } from './TopToolbar'
+import { EditorCanvas } from './EditorCanvas'
 
-export default function EditorLayout({ children }: { children?: React.ReactNode }) {
+export const EditorLayout: React.FC = () => {
   return (
-    <div style={{display:'flex',height:'100vh',gap:0}}>
-      <aside style={{width:64,background:'#071028'}}>
+    <div className="flex flex-col h-screen bg-gray-100">
+      <TopToolbar />
+      
+      <div className="flex flex-1 overflow-hidden">
         <LeftSidebar />
-      </aside>
-      <main style={{flex:1,display:'flex',flexDirection:'column'}}>
-        <header style={{height:56}}>
-          <TopToolbar />
-        </header>
-        <section style={{flex:1,display:'flex',justifyContent:'center',alignItems:'center',background:'#081221'}}>
+        
+        <main className="flex-1 flex items-center justify-center p-8 overflow-hidden">
           <EditorCanvas />
-        </section>
-      </main>
-      <aside style={{width:320,background:'#05121a',padding:12}}>
+        </main>
+        
         <RightPanel />
-      </aside>
+      </div>
     </div>
   )
 }
