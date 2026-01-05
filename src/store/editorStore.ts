@@ -1,4 +1,4 @@
-import create from 'zustand'
+import { create } from 'zustand'
 import { EditorState, defaultAdjustments, Adjustments } from '../types/editor.types'
 
 const MAX_HISTORY = 30
