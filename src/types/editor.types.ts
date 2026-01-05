@@ -13,16 +13,28 @@ export interface Adjustments {
   clarity: number
 }
 
+export type CropAspect = 'free' | '16:9' | '1:1' | '4:3' | '4:5'
+
+export interface CropRect {
+  // Normalized coordinates relative to the image (0-1)
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface EditorState {
   // Image data
   currentImage: HTMLImageElement | null
   originalImageData: ImageData | null
-  processedImageData: ImageData | null
+  previewImageData: ImageData | null
+  canvasRef: HTMLCanvasElement | null
   
   // File info
   fileName: string
   fileSize: number
-  isRaw: boolean
+  fileType: string
+  dimensions: { width: number; height: number }
   
   // Adjustments
   adjustments: Adjustments
@@ -33,18 +45,34 @@ export interface EditorState {
   
   // UI state
   isLoading: boolean
+  isProcessing: boolean
   showComparison: boolean
-  comparisonMode: 'split' | 'toggle' | 'side-by-side'
+  comparisonMode: 'split' | 'toggle'
+  activeTab: 'adjust' | 'crop' | 'presets' | 'export'
+  cropRect: CropRect
+  cropAspect: CropAspect
+  
+  // Export state
+  showExportModal: boolean
   
   // Actions
-  setImage: (image: HTMLImageElement, fileName: string, fileSize: number) => void
+  setImage: (image: HTMLImageElement, fileName: string, fileSize: number, fileType: string) => void
+  setPreviewImageData: (data: ImageData | null) => void
+  setCanvasRef: (canvas: HTMLCanvasElement | null) => void
   updateAdjustment: (key: keyof Adjustments, value: number) => void
   resetAdjustment: (key: keyof Adjustments) => void
   resetAllAdjustments: () => void
   undo: () => void
   redo: () => void
   toggleComparison: () => void
-  setComparisonMode: (mode: 'split' | 'toggle' | 'side-by-side') => void
+  setComparisonMode: (mode: 'split' | 'toggle') => void
+  setActiveTab: (tab: 'adjust' | 'crop' | 'presets' | 'export') => void
+  setCropRect: (rect: CropRect) => void
+  setCropAspect: (aspect: CropAspect) => void
+  resetCrop: () => void
+  applyCrop: () => Promise<void>
+  setShowExportModal: (show: boolean) => void
+  setIsProcessing: (processing: boolean) => void
 }
 
 export const defaultAdjustments: Adjustments = {
