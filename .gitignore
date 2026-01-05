@@ -1,9 +1,14 @@
 # Dependencies
 node_modules/
 
+# TypeScript build info
+*.tsbuildinfo
+
 # Build outputs
 .next/
 out/
+.turbo/
+.vercel/
 
 # Testing
 coverage/
@@ -22,6 +27,9 @@ pnpm-debug.log*
 .idea/
 *.swp
 *.swo
+
+# Package manager stores
+.pnpm-store/
 
 # OS artifacts
 .DS_Store
