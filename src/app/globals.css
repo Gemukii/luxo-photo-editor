@@ -1,9 +1,33 @@
-:root{
-  --bg:#0f1724;
-  --panel:#0b1220;
-  --muted:#9ca3af;
-  --accent:#06b6d4;
-  --text:#e6eef6;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
-html,body,#root{height:100%;}
-body{margin:0;font-family:Inter, system-ui, Arial, sans-serif;background:var(--bg);color:var(--text)}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
