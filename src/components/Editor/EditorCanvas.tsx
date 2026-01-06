@@ -305,9 +305,9 @@ export const EditorCanvas: React.FC = () => {
 
   if (!currentImage) {
     return (
-      <div className="flex items-center justify-center w-full h-full">
+      <div className="flex items-center justify-center w-full h-full min-h-[640px]">
         <div
-          className={`relative w-full max-w-3xl aspect-[4/3] rounded-[28px] border-2 border-dashed transition-all duration-200 backdrop-blur-xl bg-white/70 shadow-2xl shadow-indigo-200/30 ${
+          className={`relative w-full h-full max-w-[1200px] max-h-[860px] min-h-[640px] rounded-[28px] border-2 border-dashed transition-all duration-200 backdrop-blur-xl bg-white/70 shadow-2xl shadow-indigo-200/30 ${
             isDragging ? 'border-blue-500/70 scale-[1.01]' : 'border-slate-200/80'
           }`}
           onDrop={handleDrop}
@@ -343,10 +343,10 @@ export const EditorCanvas: React.FC = () => {
   }
 
   return (
-    <div className="flex items-center justify-center w-full h-full">
-      <div ref={overlayRef} className="relative w-full max-w-[980px] aspect-[4/3] bg-white/75 border border-white/70 rounded-[36px] shadow-2xl shadow-indigo-200/40 overflow-hidden backdrop-blur">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/60 via-white/20 to-slate-100/50" />
-        <div className="absolute inset-3 rounded-[28px] bg-slate-900/3" />
+    <div className="flex items-center justify-center w-full h-full min-h-[640px]">
+      <div ref={overlayRef} className="relative w-full h-full max-w-[1400px] max-h-[860px] min-h-[640px] bg-white/85 border border-white/70 rounded-[32px] shadow-[0_20px_70px_rgba(99,102,241,0.18)] overflow-hidden backdrop-blur">
+        <div className="absolute inset-0 bg-gradient-to-br from-white/70 via-white/30 to-slate-100/60" />
+        <div className="absolute inset-4 rounded-[28px] bg-slate-900/4" />
 
         <canvas
           ref={canvasRef}

@@ -12,11 +12,11 @@ export const EditorLayout: React.FC = () => {
       <div className="flex flex-col h-screen">
         <TopToolbar />
 
-        <div className="flex-1 px-6 pb-6">
-          <div className="w-full h-full max-w-6xl mx-auto flex gap-6">
+        <div className="flex-1 px-4 pb-4 min-h-0">
+          <div className="w-full h-full max-w-7xl mx-auto flex gap-4 items-stretch">
             <LeftSidebar />
 
-            <main className="flex-1 flex items-center justify-center">
+            <main className="flex-1 flex items-center justify-center min-h-0">
               <EditorCanvas />
             </main>
 
