@@ -1,3 +1,4 @@
+'use client'
 import React, { useMemo, useState } from 'react'
 
 interface Preset {
@@ -52,10 +53,12 @@ const PresetCard: React.FC<{
   menuOpen: boolean
 }> = ({ preset, active, onMenuToggle, menuOpen }) => {
   return (
-    <div className="relative group">
-      <div className={`relative rounded-[22px] bg-white/80 border border-white/70 shadow-xl shadow-slate-200/60 overflow-hidden transition-transform duration-150 ${
-        active ? 'ring-2 ring-indigo-400 ring-offset-2 ring-offset-white' : 'hover:-translate-y-1'
-      }`}>
+    <div className="relative group h-full">
+      <div
+        className={`relative flex h-full flex-col rounded-[22px] bg-white/85 border border-white/70 shadow-xl shadow-slate-200/60 overflow-hidden transition-transform duration-150 ${
+          active ? 'ring-2 ring-indigo-400 ring-offset-2 ring-offset-white' : 'hover:-translate-y-1'
+        }`}
+      >
         <div className="relative aspect-[4/4.3] w-full overflow-hidden">
           <img
             src={preset.image}
@@ -81,6 +84,7 @@ const PresetCard: React.FC<{
 
         <div className="px-4 py-3">
           <p className="text-sm font-semibold text-slate-900 truncate">{preset.name}</p>
+          <p className="text-xs text-slate-500">{preset.category}</p>
         </div>
       </div>
 
@@ -130,64 +134,145 @@ export default function PresetsPage() {
     })
   }, [activeFilter, search])
 
+  const categoryCounts = useMemo(() => {
+    return filters
+      .filter((item) => item !== 'All')
+      .map((category) => ({
+        category,
+        count: presetItems.filter((preset) => preset.category === category).length,
+      }))
+  }, [])
+
+  const totalVisible = filteredPresets.length
+
   return (
-    <div className="min-h-screen flex flex-col px-6 pb-8 pt-6">
-      <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
-        {/* Top filters and actions */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-2 bg-white/70 backdrop-blur-xl border border-white/70 shadow-lg shadow-indigo-200/40 rounded-full px-2 py-2">
-            {filters.map((filter) => {
-              const isActive = activeFilter === filter
-              return (
-                <button
-                  key={filter}
-                  onClick={() => setActiveFilter(filter)}
-                  className={`px-4 py-2 rounded-full text-sm font-semibold transition-all border ${
-                    isActive
-                      ? 'bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-md shadow-indigo-200 border-transparent'
-                      : 'bg-white/80 text-slate-700 border-slate-200 hover:shadow-sm'
-                  }`}
-                >
-                  {filter}
-                </button>
-              )
-            })}
+    <div className="min-h-screen bg-slate-50/60 px-8 py-8">
+      <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[280px,1fr]">
+        <aside className="space-y-6 sticky top-6 self-start">
+          <div className="rounded-3xl bg-white/85 backdrop-blur-xl border border-white/80 shadow-xl shadow-indigo-200/40 p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Filters</p>
+                <h2 className="text-lg font-semibold text-slate-900">Preset types</h2>
+              </div>
+              <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-600">
+                {presetItems.length}
+              </span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {filters.map((filter) => {
+                const isActive = activeFilter === filter
+                return (
+                  <button
+                    key={filter}
+                    onClick={() => setActiveFilter(filter)}
+                    className={`w-full h-11 rounded-xl text-sm font-semibold transition-all border ${
+                      isActive
+                        ? 'bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-md shadow-indigo-200 border-transparent'
+                        : 'bg-white/90 text-slate-700 border-slate-200 hover:shadow-sm'
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-3 bg-white/80 border border-slate-200 rounded-full px-4 py-2 shadow-inner">
+          <div className="rounded-3xl bg-white/85 backdrop-blur-xl border border-white/80 shadow-xl shadow-indigo-200/40 p-5 space-y-4">
+            <div className="flex items-center gap-3 rounded-2xl bg-white/90 border border-slate-200 px-4 py-3 shadow-inner">
               <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" />
               </svg>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search"
-                className="bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400 w-32"
+                placeholder="Search presets"
+                className="bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400 w-full"
               />
             </div>
-            <button className="px-5 h-11 rounded-full border border-slate-300 text-slate-800 bg-white/90 hover:shadow-md transition-all font-semibold">
-              Import Presets
-             </button>
-            <button className="px-5 h-11 rounded-full border border-slate-300 text-slate-800 bg-white/90 hover:shadow-md transition-all font-semibold">
-              Create New
-            </button>
-           </div>
-         </div>
- 
-         {/* Grid */}
-         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-           {filteredPresets.map((preset) => (
-             <PresetCard
-               key={preset.id}
-               preset={preset}
-               active={menuId === preset.id}
-               menuOpen={menuId === preset.id}
-               onMenuToggle={(id) => setMenuId((prev) => (prev === id ? '' : id))}
-             />
-           ))}
-         </div>
-       </div>
-     </div>
-   )
- }
+
+            <div className="grid grid-cols-2 gap-3">
+              <button className="w-full h-12 rounded-2xl border border-slate-200 text-slate-800 bg-white/90 hover:shadow-md transition-all font-semibold">
+                Import Presets
+              </button>
+              <button className="w-full h-12 rounded-2xl border border-slate-200 text-slate-800 bg-white/90 hover:shadow-md transition-all font-semibold">
+                Create New
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-3xl bg-white/85 backdrop-blur-xl border border-white/80 shadow-xl shadow-indigo-200/40 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-800">Library snapshot</p>
+              <span className="text-xs text-emerald-600">Live</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {categoryCounts.map((item) => (
+                <div
+                  key={item.category}
+                  className="rounded-2xl border border-slate-100 bg-white/90 px-3 py-2 shadow-sm"
+                >
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-slate-400">{item.category}</p>
+                  <p className="text-xl font-semibold text-slate-900">{item.count}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        <main className="flex flex-col gap-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Library</p>
+              <h1 className="text-2xl font-semibold text-slate-900">Explore presets</h1>
+              <p className="text-sm text-slate-500">{totalVisible} {totalVisible === 1 ? 'preset' : 'presets'} found</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-sm font-semibold text-indigo-600">
+                {activeFilter}
+              </span>
+              {search && (
+                <span className="rounded-full bg-slate-900/5 px-3 py-1 text-sm text-slate-700">
+                  "{search}"
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  setSearch('')
+                  setActiveFilter('All')
+                }}
+                className="h-10 rounded-full border border-slate-200 bg-white/90 px-4 text-sm font-semibold text-slate-700 hover:shadow-sm"
+              >
+                Reset view
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-white/70 bg-white/85 p-5 shadow-2xl shadow-indigo-200/40">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              {filteredPresets.length === 0 ? (
+                <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 py-16 text-center">
+                  <p className="text-lg font-semibold text-slate-800">No presets match</p>
+                  <p className="text-sm text-slate-500">Try a different filter or clear the search.</p>
+                </div>
+              ) : (
+                filteredPresets.map((preset) => (
+                  <PresetCard
+                    key={preset.id}
+                    preset={preset}
+                    active={menuId === preset.id}
+                    menuOpen={menuId === preset.id}
+                    onMenuToggle={(id) => setMenuId((prev) => (prev === id ? '' : id))}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  )
+}
