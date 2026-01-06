@@ -37,7 +37,7 @@ export const LeftSidebar: React.FC = () => {
   }
 
   return (
-    <aside className="w-16 bg-white/70 backdrop-blur-xl border border-white/70 shadow-lg shadow-indigo-200/30 rounded-3xl flex flex-col items-center py-6 gap-3">
+    <aside className="w-16 bg-white/70 backdrop-blur-xl border border-white/70 shadow-lg shadow-indigo-200/30 rounded-3xl flex flex-col items-center py-6 gap-3 h-full">
       <SidebarIcon
         icon={
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,6 +47,47 @@ export const LeftSidebar: React.FC = () => {
         label="Adjustments"
         active={activeTab === 'adjust'}
         onClick={() => setActiveTab('adjust')}
+        disabled={!currentImage}
+      />
+
+      <SidebarIcon
+        icon={
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+        }
+        label="Retouch"
+        disabled={!currentImage}
+      />
+
+      <SidebarIcon
+        icon={
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 19c4-8 12-8 16 0M4 5c4 8 12 8 16 0" />
+          </svg>
+        }
+        label="Curves"
+        disabled={!currentImage}
+      />
+
+      <SidebarIcon
+        icon={
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 7h14M5 12h14M5 17h14M9 7v10" />
+          </svg>
+        }
+        label="Text"
+        disabled={!currentImage}
+      />
+
+      <SidebarIcon
+        icon={
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <rect x="5" y="5" width="14" height="14" rx="2" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9h6v6H9z" />
+          </svg>
+        }
+        label="Frames"
         disabled={!currentImage}
       />
       
