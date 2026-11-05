@@ -5,6 +5,7 @@ import { RightPanel } from './RightPanel'
 import { TopToolbar } from './TopToolbar'
 import { EditorCanvas } from './EditorCanvas'
 import { ExportModal } from './ExportModal'
+import { ImportErrorToast } from './ImportErrorToast'
 
 export const EditorLayout: React.FC = () => {
   return (
@@ -26,6 +27,7 @@ export const EditorLayout: React.FC = () => {
       </div>
 
       <ExportModal />
+      <ImportErrorToast />
     </>
   )
 }

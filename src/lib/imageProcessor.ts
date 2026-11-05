@@ -1,4 +1,5 @@
-import { Adjustments } from '@/types/editor.types'
+import { Adjustments, CropRect } from '@/types/editor.types'
+import { cropImageData } from '@/lib/crop'
 
 export const applyAdjustments = (
   imageData: ImageData,
@@ -115,6 +116,33 @@ export const applyAdjustments = (
     pixels[i] = Math.max(0, Math.min(255, r))
     pixels[i + 1] = Math.max(0, Math.min(255, g))
     pixels[i + 2] = Math.max(0, Math.min(255, b))
+  }
+
+  return result
+}
+
+/** Renders an edit from the untouched source. Display and export both use this. */
+export const renderEdit = (
+  source: ImageData,
+  adjustments: Adjustments,
+  crop: CropRect | null
+): ImageData => applyAdjustments(cropImageData(source, crop), adjustments)
+
+/** Nearest-neighbour downscale, used for the histogram. */
+export const downsampleImageData = (source: ImageData, maxWidth: number): ImageData => {
+  if (source.width <= maxWidth) return source
+
+  const width = maxWidth
+  const height = Math.max(1, Math.round(source.height * (width / source.width)))
+  const result = new ImageData(width, height)
+  const from = new Uint32Array(source.data.buffer, source.data.byteOffset, source.width * source.height)
+  const to = new Uint32Array(result.data.buffer)
+
+  for (let y = 0; y < height; y++) {
+    const sourceRow = Math.floor((y * source.height) / height) * source.width
+    for (let x = 0; x < width; x++) {
+      to[y * width + x] = from[sourceRow + Math.floor((x * source.width) / width)]
+    }
   }
 
   return result

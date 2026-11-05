@@ -9,68 +9,77 @@ export interface Adjustments {
   vibrance: number
   temperature: number
   tint: number
-  sharpness: number
-  clarity: number
 }
 
 export type CropAspect = 'free' | '16:9' | '1:1' | '4:3' | '4:5'
 
 export interface CropRect {
-  // Normalized coordinates relative to the image (0-1)
+  // Normalized coordinates relative to the source image (0-1)
   x: number
   y: number
   width: number
   height: number
 }
 
+/** One undo step: everything needed to render an edit from the source image. */
+export interface EditSnapshot {
+  adjustments: Adjustments
+  crop: CropRect | null
+}
+
+export type EditorTab = 'adjust' | 'crop' | 'presets' | 'export'
+
 export interface EditorState {
   // Image data
   currentImage: HTMLImageElement | null
   originalImageData: ImageData | null
   previewImageData: ImageData | null
-  canvasRef: HTMLCanvasElement | null
-  
+
   // File info
   fileName: string
   fileSize: number
   fileType: string
   dimensions: { width: number; height: number }
-  
-  // Adjustments
+
+  // Edit data
   adjustments: Adjustments
-  
+  crop: CropRect | null
+
   // History for undo/redo
-  history: Adjustments[]
+  history: EditSnapshot[]
   historyIndex: number
-  
+
   // UI state
   isLoading: boolean
   isProcessing: boolean
+  importError: string | null
   showComparison: boolean
   comparisonMode: 'split' | 'toggle'
-  activeTab: 'adjust' | 'crop' | 'presets' | 'export'
+  activeTab: EditorTab
   cropRect: CropRect
   cropAspect: CropAspect
-  
+
   // Export state
   showExportModal: boolean
-  
+
   // Actions
+  importFile: (file: File) => Promise<void>
+  clearImportError: () => void
   setImage: (image: HTMLImageElement, fileName: string, fileSize: number, fileType: string) => void
   setPreviewImageData: (data: ImageData | null) => void
-  setCanvasRef: (canvas: HTMLCanvasElement | null) => void
   updateAdjustment: (key: keyof Adjustments, value: number) => void
+  commitHistory: () => void
   resetAdjustment: (key: keyof Adjustments) => void
   resetAllAdjustments: () => void
   undo: () => void
   redo: () => void
   toggleComparison: () => void
   setComparisonMode: (mode: 'split' | 'toggle') => void
-  setActiveTab: (tab: 'adjust' | 'crop' | 'presets' | 'export') => void
+  setActiveTab: (tab: EditorTab) => void
   setCropRect: (rect: CropRect) => void
   setCropAspect: (aspect: CropAspect) => void
   resetCrop: () => void
-  applyCrop: () => Promise<void>
+  applyCrop: () => void
   setShowExportModal: (show: boolean) => void
   setIsProcessing: (processing: boolean) => void
 }
@@ -86,6 +95,4 @@ export const defaultAdjustments: Adjustments = {
   vibrance: 0,
   temperature: 0,
   tint: 0,
-  sharpness: 0,
-  clarity: 0,
 }

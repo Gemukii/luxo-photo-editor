@@ -1,8 +1,11 @@
 'use client'
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { useEditorStore } from '@/store/editorStore'
-import { loadImageFromFile } from '@/lib/imageLoader'
-import { applyAdjustments } from '@/lib/imageProcessor'
+import { croppedSize, cropImageData, fitContain, normalizedAspect } from '@/lib/crop'
+import { applyAdjustments, downsampleImageData } from '@/lib/imageProcessor'
+import { OpenImageButton } from './OpenImageButton'
+
+const HISTOGRAM_WIDTH = 320
 
 const aspectOptions = [
   { label: '16:9', value: '16:9' as const },
@@ -23,13 +26,14 @@ export const EditorCanvas: React.FC = () => {
   
   const {
     currentImage,
-    setImage,
+    importFile,
     adjustments,
+    crop,
+    dimensions,
     showComparison,
     originalImageData,
     setPreviewImageData,
     setIsProcessing,
-    setCanvasRef,
     activeTab,
     cropRect,
     cropAspect,
@@ -38,22 +42,22 @@ export const EditorCanvas: React.FC = () => {
     resetCrop,
   } = useEditorStore()
 
+  // The crop tab shows the whole image, so the frame can be moved anywhere.
+  const visibleCrop = activeTab === 'crop' ? null : crop
+
+  const imageBox = useMemo(
+    () => fitContain(overlaySize, croppedSize(dimensions, visibleCrop)),
+    [overlaySize, dimensions, visibleCrop]
+  )
+
   // Handle file drop
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
 
     const file = e.dataTransfer.files[0]
-    if (file && file.type.startsWith('image/')) {
-      try {
-        const { image, fileName, fileSize } = await loadImageFromFile(file)
-        setImage(image, fileName, fileSize, file.type)
-      } catch (error) {
-        console.error('Error loading image:', error)
-        alert('Failed to load image. Please try another file.')
-      }
-    }
-  }, [setImage])
+    if (file) await importFile(file)
+  }, [importFile])
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -64,11 +68,10 @@ export const EditorCanvas: React.FC = () => {
     setIsDragging(false)
   }
 
-  const aspectValue = useMemo(() => {
-    if (cropAspect === 'free') return null
-    const [w, h] = cropAspect.split(':').map(Number)
-    return h ? w / h : null
-  }, [cropAspect])
+  const aspectValue = useMemo(
+    () => normalizedAspect(cropAspect, dimensions),
+    [cropAspect, dimensions]
+  )
 
   useEffect(() => {
     const updateSize = () => {
@@ -82,15 +85,15 @@ export const EditorCanvas: React.FC = () => {
     if (overlayRef.current) observer.observe(overlayRef.current)
 
     return () => observer.disconnect()
-  }, [])
+  }, [currentImage])
 
   const handlePointerMove = useCallback(
     (e: PointerEvent) => {
       if (!dragHandleRef.current || !dragStartPointRef.current || !dragStartRectRef.current) return
-      if (!overlaySize.width || !overlaySize.height) return
+      if (!imageBox.width || !imageBox.height) return
 
-      const dx = (e.clientX - dragStartPointRef.current.x) / overlaySize.width
-      const dy = (e.clientY - dragStartPointRef.current.y) / overlaySize.height
+      const dx = (e.clientX - dragStartPointRef.current.x) / imageBox.width
+      const dy = (e.clientY - dragStartPointRef.current.y) / imageBox.height
       const start = dragStartRectRef.current
       const minSize = 0.1
 
@@ -167,7 +170,7 @@ export const EditorCanvas: React.FC = () => {
 
       setCropRect(nextRect)
     },
-    [aspectValue, overlaySize.height, overlaySize.width, setCropRect]
+    [aspectValue, imageBox.height, imageBox.width, setCropRect]
   )
 
   const stopDragging = useCallback(() => {
@@ -205,93 +208,49 @@ export const EditorCanvas: React.FC = () => {
     height: `${cropRect.height * 100}%`,
   }), [cropRect])
 
-  // Store original image data
+  // Capture the source pixels once per image
   useEffect(() => {
-    if (!currentImage || !canvasRef.current) return
+    if (!currentImage) return
 
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })
-    if (!ctx) return
-
+    const canvas = document.createElement('canvas')
     canvas.width = currentImage.width
     canvas.height = currentImage.height
 
-    ctx.drawImage(currentImage, 0, 0)
-    const original = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    
-    useEditorStore.setState({ originalImageData: original })
-    setCanvasRef(canvasRef.current)
-  }, [currentImage, setCanvasRef])
-
-  // Process image with adjustments (debounced)
-  useEffect(() => {
-    if (!canvasRef.current || !currentImage || !useEditorStore.getState().originalImageData) return
-
-    const canvas = canvasRef.current
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
 
-    // Clear previous timeout
+    ctx.drawImage(currentImage, 0, 0)
+    useEditorStore.setState({
+      originalImageData: ctx.getImageData(0, 0, canvas.width, canvas.height),
+    })
+  }, [currentImage])
+
+  // Render the edit from the source (debounced)
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext('2d', { willReadFrequently: true })
+    if (!canvas || !ctx || !originalImageData) return
+
     if (processingTimeoutRef.current) {
       clearTimeout(processingTimeoutRef.current)
     }
 
     setIsProcessing(true)
 
-    // Debounce processing for 16ms (60fps)
     processingTimeoutRef.current = setTimeout(() => {
-      const original = useEditorStore.getState().originalImageData
-      if (!original) return
+      const source = cropImageData(originalImageData, visibleCrop)
+      const processed = applyAdjustments(source, adjustments)
 
-      // Apply adjustments
-      const processed = applyAdjustments(original, adjustments)
-      // Downsample for lightweight preview/histogram to avoid huge ImageData in state
-      const previewWidth = Math.min(320, canvas.width)
-      const scale = previewWidth / canvas.width
-      const previewHeight = Math.max(1, Math.round(canvas.height * scale))
+      if (canvas.width !== processed.width) canvas.width = processed.width
+      if (canvas.height !== processed.height) canvas.height = processed.height
 
-      const previewCanvas = document.createElement('canvas')
-      previewCanvas.width = previewWidth
-      previewCanvas.height = previewHeight
-      const previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true })
-      if (previewCtx) {
-        previewCtx.drawImage(canvas, 0, 0, previewWidth, previewHeight)
-        const previewData = previewCtx.getImageData(0, 0, previewWidth, previewHeight)
-        setPreviewImageData(previewData)
-      }
+      setPreviewImageData(downsampleImageData(processed, HISTOGRAM_WIDTH))
 
-      // Draw to canvas
       if (showComparison) {
-        // Split screen comparison
         const splitX = Math.floor(canvas.width / 2)
-        
-        // Left side: original
-        ctx.putImageData(original, 0, 0, 0, 0, splitX, canvas.height)
-        
-        // Right side: processed
+        ctx.putImageData(source, 0, 0, 0, 0, splitX, canvas.height)
         ctx.putImageData(processed, 0, 0, splitX, 0, canvas.width - splitX, canvas.height)
-        
-        // Draw divider
-        ctx.strokeStyle = '#ffffff'
-        ctx.lineWidth = 3
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)'
-        ctx.shadowBlur = 10
-        ctx.beginPath()
-        ctx.moveTo(splitX, 0)
-        ctx.lineTo(splitX, canvas.height)
-        ctx.stroke()
-        ctx.shadowBlur = 0
-        
-        // Draw labels
-        ctx.font = 'bold 14px sans-serif'
-        ctx.fillStyle = '#ffffff'
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
-        ctx.shadowBlur = 4
-        ctx.fillText('Before', 20, 30)
-        ctx.fillText('After', splitX + 20, 30)
-        ctx.shadowBlur = 0
       } else {
-        // Normal view: just processed
         ctx.putImageData(processed, 0, 0)
       }
     }, 16)
@@ -301,7 +260,7 @@ export const EditorCanvas: React.FC = () => {
         clearTimeout(processingTimeoutRef.current)
       }
     }
-  }, [currentImage, adjustments, showComparison, setPreviewImageData, setIsProcessing])
+  }, [originalImageData, adjustments, visibleCrop, showComparison, setPreviewImageData, setIsProcessing])
 
   if (!currentImage) {
     return (
@@ -333,8 +292,11 @@ export const EditorCanvas: React.FC = () => {
                 </svg>
               </div>
               <h3 className="text-2xl font-semibold text-slate-900 mb-2">Drop your image here</h3>
-              <p className="text-sm text-slate-500">or drag & drop to start editing</p>
-              <p className="text-xs text-slate-400 mt-2">JPEG, PNG, WebP • Max 50MB</p>
+              <p className="text-sm text-slate-500 mb-4">or choose a file to start editing</p>
+              <OpenImageButton className="px-5 h-11 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white text-sm font-semibold shadow-md shadow-indigo-200 hover:shadow-lg transition-all">
+                Choose a file
+              </OpenImageButton>
+              <p className="text-xs text-slate-400 mt-4">JPEG, PNG, WebP</p>
             </div>
           </div>
         </div>
@@ -344,7 +306,13 @@ export const EditorCanvas: React.FC = () => {
 
   return (
     <div className="flex items-center justify-center w-full h-full min-h-[640px]">
-      <div ref={overlayRef} className="relative w-full h-full max-w-[1400px] max-h-[860px] min-h-[640px] bg-white/85 border border-white/70 rounded-[32px] shadow-[0_20px_70px_rgba(99,102,241,0.18)] overflow-hidden backdrop-blur">
+      <div
+        ref={overlayRef}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        className="relative w-full h-full max-w-[1400px] max-h-[860px] min-h-[640px] bg-white/85 border border-white/70 rounded-[32px] shadow-[0_20px_70px_rgba(99,102,241,0.18)] overflow-hidden backdrop-blur"
+      >
         <div className="absolute inset-0 bg-gradient-to-br from-white/70 via-white/30 to-slate-100/60" />
         <div className="absolute inset-4 rounded-[28px] bg-slate-900/4" />
 
@@ -359,6 +327,7 @@ export const EditorCanvas: React.FC = () => {
 
         {showCropOverlay && (
           <div className="absolute inset-0 z-40">
+            <div className="absolute" style={imageBox}>
             <div className="absolute inset-0 pointer-events-none">
               <div
                 className="absolute inset-x-0 top-0 bg-slate-900/40"
@@ -412,7 +381,7 @@ export const EditorCanvas: React.FC = () => {
                   <button
                     key={handle}
                     onPointerDown={(e) => handlePointerDown(e, handle as 'nw' | 'ne' | 'sw' | 'se')}
-                    className="absolute w-5 h-5 -mx-[10px] -my-[10px] rounded-full bg-white text-slate-700 shadow-lg border border-slate-200 hover:scale-105 transition"
+                    className="absolute w-5 h-5 rounded-full bg-white text-slate-700 shadow-lg border border-slate-200 hover:scale-105 transition"
                     style={{
                       left: isLeft ? 0 : '100%',
                       top: isTop ? 0 : '100%',
@@ -422,6 +391,7 @@ export const EditorCanvas: React.FC = () => {
                   />
                 )
               })}
+            </div>
             </div>
 
             <div className="absolute left-1/2 -translate-x-1/2 bottom-6 flex items-center gap-2 bg-slate-900/70 text-white px-3 py-2 rounded-full backdrop-blur-md shadow-xl border border-white/10">

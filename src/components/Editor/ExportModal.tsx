@@ -2,19 +2,32 @@
 import React, { useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
 import { Button } from '@/components/UI/Button'
+import { croppedSize } from '@/lib/crop'
+import { renderEdit } from '@/lib/imageProcessor'
 
 type ExportFormat = 'jpeg' | 'png'
 
 export const ExportModal: React.FC = () => {
-  const { showExportModal, setShowExportModal, currentImage, canvasRef, fileName } = useEditorStore()
+  const {
+    showExportModal,
+    setShowExportModal,
+    currentImage,
+    originalImageData,
+    adjustments,
+    crop,
+    dimensions,
+    fileName,
+  } = useEditorStore()
   const [format, setFormat] = useState<ExportFormat>('jpeg')
   const [quality, setQuality] = useState(90)
   const [isExporting, setIsExporting] = useState(false)
 
-  if (!showExportModal || !currentImage || !canvasRef) return null
+  if (!showExportModal || !currentImage || !originalImageData) return null
+
+  const outputSize = croppedSize(dimensions, crop)
 
   const estimatedSize = () => {
-    const pixels = canvasRef.width * canvasRef.height
+    const pixels = outputSize.width * outputSize.height
     if (format === 'png') {
       return ((pixels * 3) / 1024 / 1024).toFixed(1) + ' MB'
     }
@@ -25,14 +38,20 @@ export const ExportModal: React.FC = () => {
   const handleExport = async () => {
     setIsExporting(true)
 
+    // Let the spinner paint before the render blocks the main thread
+    await new Promise((resolve) => setTimeout(resolve))
+
     try {
+      // Rendered from the source, so view state such as comparison cannot leak in
+      const rendered = renderEdit(originalImageData, adjustments, crop)
+
       const canvas = document.createElement('canvas')
-      canvas.width = canvasRef.width
-      canvas.height = canvasRef.height
+      canvas.width = rendered.width
+      canvas.height = rendered.height
       const ctx = canvas.getContext('2d')
       if (!ctx) throw new Error('Failed to get canvas context')
 
-      ctx.drawImage(canvasRef, 0, 0)
+      ctx.putImageData(rendered, 0, 0)
 
       const blob = await new Promise<Blob | null>((resolve) => {
         if (format === 'jpeg') {

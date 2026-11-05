@@ -1,44 +1,45 @@
 # LUXO
 
-**Modern web-based photo editor for photographers and travelers**
+**A browser-based photo editor for the photos you already have**
+
+LUXO combines Lightroom-style manual editing with one-click looks, so you can get a good result quickly without knowing colour grading. One-click looks are the next major feature: see the [roadmap](#roadmap).
 
 ---
 
 ## Why LUXO?
 
-- **🚀 Fast**: Edit 20MB photos instantly with GPU acceleration
-- **🔒 Private**: Everything runs in your browser - photos never leave your device
-- **📸 RAW Support**: Edit DNG, CR2, NEF, ARW files like a pro
-- **💰 Free**: No subscriptions, no accounts, no cloud storage needed
-- **🌐 Web-Based**: Works instantly - no installation required
-- **📱 Works Everywhere**: Desktop, laptop, or tablet
+- **Private**: everything runs in your browser, and your photos never leave your device
+- **Free**: no subscriptions, no accounts, no cloud storage
+- **Web-based**: nothing to install
+- **Safe for your originals**: edits never change the source file, and export creates a new one
 
 ---
 
 ## Features
 
-### Editing Tools
-- Professional adjustments: Exposure, Contrast, Highlights, Shadows, Saturation, Vibrance, White Balance
-- Live RGB histogram with clipping indicators
-- Crop & rotate with rule of thirds grid
-- Before/after split-screen comparison
+### Editing
+- Adjustments: Exposure, Contrast, Saturation, Vibrance, Highlights, Shadows, Whites, Blacks, Temperature, Tint
+- Live RGB histogram
+- Non-destructive crop with 16:9, 1:1, 4:3 and 4:5 ratios and a rule-of-thirds grid
+- Before/after split view
+- Undo and redo, covering both adjustments and crop
 
-### Presets
-- Save your favorite adjustments as presets
-- Visual gallery with before/after previews
-- Import/export presets to share with others
+### Import
+- File picker or drag and drop
+- JPEG, PNG, WebP, and any other format your browser can decode
 
 ### Export
-- JPEG, PNG, or 16-bit TIFF
-- Quality control with file size preview
-- Preserve EXIF, GPS, and copyright data
-- Resize options: Original, 4K, 1080p, or custom
+- JPEG with a quality setting, or PNG
 
-### RAW Photos
-- DNG, CR2/CR3 (Canon), NEF (Nikon), ARW (Sony)
-- Instant preview + full quality processing
-- Extended white balance range (±10000K)
-- "As Shot" white balance from camera
+---
+
+## Roadmap
+
+- **Looks**: predefined filters and LUTs, with a single strength slider
+- **GPU rendering**: instant feedback on large photos (currently about 1 to 3 seconds per change at 24 MP)
+- **RAW support**, 16-bit export, and metadata preservation
+
+Architecture decisions are recorded in [docs/adr](docs/adr/README.md).
 
 ---
 
@@ -48,3 +49,12 @@
 npm install
 npm run dev
 # Open http://localhost:3000
+```
+
+## Development
+
+```bash
+npm test           # Unit tests
+npm run typecheck  # Type check
+npm run build      # Production build
+```

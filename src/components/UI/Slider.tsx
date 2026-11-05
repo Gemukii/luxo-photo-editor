@@ -8,6 +8,7 @@ interface SliderProps {
   max: number
   step: number
   onChange: (value: number) => void
+  onCommit: () => void
   onReset: () => void
   unit?: string
 }
@@ -19,6 +20,7 @@ export const Slider: React.FC<SliderProps> = ({
   max,
   step,
   onChange,
+  onCommit,
   onReset,
   unit = '',
 }) => {
@@ -49,8 +51,11 @@ export const Slider: React.FC<SliderProps> = ({
               type="number"
               value={value.toFixed(step < 1 ? 1 : 0)}
               onChange={handleInputChange}
-              onBlur={() => setIsEditing(false)}
-              onKeyDown={(e) => e.key === 'Enter' && setIsEditing(false)}
+              onBlur={() => {
+                setIsEditing(false)
+                onCommit()
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               className="w-16 px-2 py-1 text-xs text-right border border-indigo-400 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
               step={step}
               min={min}
@@ -97,6 +102,8 @@ export const Slider: React.FC<SliderProps> = ({
           step={step}
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value))}
+          onPointerDown={() => window.addEventListener('pointerup', onCommit, { once: true })}
+          onKeyUp={onCommit}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className="absolute inset-0 w-full opacity-0 cursor-pointer z-10"

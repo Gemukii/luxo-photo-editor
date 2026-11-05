@@ -1,243 +1,188 @@
 import { create } from 'zustand'
 import {
   EditorState,
+  EditSnapshot,
   defaultAdjustments,
-  Adjustments,
-  CropRect,
-  CropAspect,
 } from '@/types/editor.types'
+import {
+  clampCropRect,
+  createDefaultCropRect,
+  fitRectToAspect,
+} from '@/lib/crop'
+import { getImportError, loadImageFromFile } from '@/lib/imageLoader'
 
-const MAX_HISTORY = 30
+export const MAX_HISTORY = 30
 
-const parseAspectValue = (aspect: CropAspect): number | null => {
-  if (aspect === 'free') return null
-  const [w, h] = aspect.split(':').map(Number)
-  return h ? w / h : null
-}
-
-const createDefaultCropRect = (): CropRect => ({
-  x: 0.2,
-  y: 0.15,
-  width: 0.6,
-  height: 0.6,
+const createInitialSnapshot = (): EditSnapshot => ({
+  adjustments: { ...defaultAdjustments },
+  crop: null,
 })
 
-const adjustRectToAspect = (rect: CropRect, aspect: CropAspect): CropRect => {
-  const ratio = parseAspectValue(aspect)
-  if (!ratio) return rect
+const isSameSnapshot = (a: EditSnapshot, b: EditSnapshot) =>
+  JSON.stringify(a) === JSON.stringify(b)
 
-  const centerX = rect.x + rect.width / 2
-  const centerY = rect.y + rect.height / 2
-
-  let width = rect.width
-  let height = width / ratio
-
-  if (height > rect.height) {
-    height = rect.height
-    width = height * ratio
+export const useEditorStore = create<EditorState>((set, get) => {
+  const restoreSnapshot = (index: number) => {
+    const snapshot = get().history[index]
+    set({
+      adjustments: snapshot.adjustments,
+      crop: snapshot.crop,
+      cropRect: snapshot.crop ?? createDefaultCropRect(),
+      historyIndex: index,
+    })
   }
 
-  // Clamp to bounds
-  width = Math.min(width, 1)
-  height = Math.min(height, 1)
+  return {
+    // Initial state
+    currentImage: null,
+    originalImageData: null,
+    previewImageData: null,
+    fileName: '',
+    fileSize: 0,
+    fileType: '',
+    dimensions: { width: 0, height: 0 },
+    adjustments: { ...defaultAdjustments },
+    crop: null,
+    history: [createInitialSnapshot()],
+    historyIndex: 0,
+    isLoading: false,
+    isProcessing: false,
+    importError: null,
+    showComparison: false,
+    comparisonMode: 'split',
+    activeTab: 'adjust',
+    cropRect: createDefaultCropRect(),
+    cropAspect: 'free',
+    showExportModal: false,
 
-  let x = Math.max(0, Math.min(1 - width, centerX - width / 2))
-  let y = Math.max(0, Math.min(1 - height, centerY - height / 2))
+    importFile: async (file) => {
+      const importError = getImportError(file)
+      if (importError) {
+        set({ importError })
+        return
+      }
 
-  return { x, y, width, height }
-}
+      set({ isLoading: true, importError: null })
 
-export const useEditorStore = create<EditorState>((set, get) => ({
-  // Initial state
-  currentImage: null,
-  originalImageData: null,
-  previewImageData: null,
-  canvasRef: null,
-  fileName: '',
-  fileSize: 0,
-  fileType: '',
-  dimensions: { width: 0, height: 0 },
-  adjustments: { ...defaultAdjustments },
-  history: [{ ...defaultAdjustments }],
-  historyIndex: 0,
-  isLoading: false,
-  isProcessing: false,
-  showComparison: false,
-  comparisonMode: 'split',
-  activeTab: 'adjust',
-  cropRect: createDefaultCropRect(),
-  cropAspect: 'free',
-  showExportModal: false,
+      try {
+        const { image, fileName, fileSize } = await loadImageFromFile(file)
+        get().setImage(image, fileName, fileSize, file.type)
+      } catch (error) {
+        console.error('Error loading image:', error)
+        set({
+          isLoading: false,
+          importError: 'This image could not be opened. Please try another file.',
+        })
+      }
+    },
 
-  setImage: (image, fileName, fileSize, fileType) => {
-    set({
-      currentImage: image,
-      fileName,
-      fileSize,
-      fileType,
-      dimensions: { width: image.width, height: image.height },
-      isLoading: false,
-      adjustments: { ...defaultAdjustments },
-      history: [{ ...defaultAdjustments }],
-      historyIndex: 0,
-      cropRect: createDefaultCropRect(),
-      cropAspect: 'free',
-    })
-  },
+    clearImportError: () => {
+      set({ importError: null })
+    },
 
-  setPreviewImageData: (data) => {
-    set({ previewImageData: data, isProcessing: false })
-  },
-
-  setCanvasRef: (canvas) => {
-    set({ canvasRef: canvas })
-  },
-
-  updateAdjustment: (key, value) => {
-    const state = get()
-    const newAdjustments = {
-      ...state.adjustments,
-      [key]: value,
-    }
-
-    const newHistory = [
-      ...state.history.slice(0, state.historyIndex + 1),
-      newAdjustments,
-    ].slice(-MAX_HISTORY)
-
-    set({
-      adjustments: newAdjustments,
-      history: newHistory,
-      historyIndex: newHistory.length - 1,
-    })
-  },
-
-  resetAdjustment: (key) => {
-    get().updateAdjustment(key, defaultAdjustments[key])
-  },
-
-  resetAllAdjustments: () => {
-    set({
-      adjustments: { ...defaultAdjustments },
-      history: [{ ...defaultAdjustments }],
-      historyIndex: 0,
-    })
-  },
-
-  undo: () => {
-    const state = get()
-    if (state.historyIndex > 0) {
-      const newIndex = state.historyIndex - 1
+    setImage: (image, fileName, fileSize, fileType) => {
       set({
-        adjustments: state.history[newIndex],
-        historyIndex: newIndex,
+        currentImage: image,
+        originalImageData: null,
+        previewImageData: null,
+        fileName,
+        fileSize,
+        fileType,
+        dimensions: { width: image.width, height: image.height },
+        isLoading: false,
+        adjustments: { ...defaultAdjustments },
+        crop: null,
+        history: [createInitialSnapshot()],
+        historyIndex: 0,
+        activeTab: 'adjust',
+        cropRect: createDefaultCropRect(),
+        cropAspect: 'free',
       })
-    }
-  },
+    },
 
-  redo: () => {
-    const state = get()
-    if (state.historyIndex < state.history.length - 1) {
-      const newIndex = state.historyIndex + 1
-      set({
-        adjustments: state.history[newIndex],
-        historyIndex: newIndex,
-      })
-    }
-  },
+    setPreviewImageData: (data) => {
+      set({ previewImageData: data, isProcessing: false })
+    },
 
-  toggleComparison: () => {
-    set((state) => ({ showComparison: !state.showComparison }))
-  },
+    // Updates the live value only. Call commitHistory when the gesture ends.
+    updateAdjustment: (key, value) => {
+      set((state) => ({ adjustments: { ...state.adjustments, [key]: value } }))
+    },
 
-  setComparisonMode: (mode) => {
-    set({ comparisonMode: mode })
-  },
+    commitHistory: () => {
+      const { adjustments, crop, history, historyIndex } = get()
+      const snapshot: EditSnapshot = { adjustments, crop }
 
-  setActiveTab: (tab) => {
-    set({ activeTab: tab })
-  },
+      if (isSameSnapshot(snapshot, history[historyIndex])) return
 
-  setCropRect: (rect) => {
-    const clamped: CropRect = {
-      x: Math.max(0, Math.min(1 - rect.width, rect.x)),
-      y: Math.max(0, Math.min(1 - rect.height, rect.y)),
-      width: Math.max(0.05, Math.min(1, rect.width)),
-      height: Math.max(0.05, Math.min(1, rect.height)),
-    }
+      const newHistory = [...history.slice(0, historyIndex + 1), snapshot].slice(-MAX_HISTORY)
+      set({ history: newHistory, historyIndex: newHistory.length - 1 })
+    },
 
-    set({ cropRect: clamped })
-  },
+    resetAdjustment: (key) => {
+      get().updateAdjustment(key, defaultAdjustments[key])
+      get().commitHistory()
+    },
 
-  setCropAspect: (aspect) => {
-    set((state) => ({
-      cropAspect: aspect,
-      cropRect: adjustRectToAspect(state.cropRect, aspect),
-    }))
-  },
+    resetAllAdjustments: () => {
+      set({ adjustments: { ...defaultAdjustments } })
+      get().commitHistory()
+    },
 
-  resetCrop: () => {
-    set({ cropRect: createDefaultCropRect(), cropAspect: 'free' })
-  },
+    undo: () => {
+      get().commitHistory()
+      const { historyIndex } = get()
+      if (historyIndex > 0) restoreSnapshot(historyIndex - 1)
+    },
 
-  applyCrop: async () => {
-    const state = get()
-    const { originalImageData, cropRect, fileType } = state
+    redo: () => {
+      const { history, historyIndex } = get()
+      if (historyIndex < history.length - 1) restoreSnapshot(historyIndex + 1)
+    },
 
-    if (!originalImageData || !state.currentImage) return
+    toggleComparison: () => {
+      set((state) => ({ showComparison: !state.showComparison }))
+    },
 
-    const baseWidth = originalImageData.width
-    const baseHeight = originalImageData.height
+    setComparisonMode: (mode) => {
+      set({ comparisonMode: mode })
+    },
 
-    const cropX = Math.round(cropRect.x * baseWidth)
-    const cropY = Math.round(cropRect.y * baseHeight)
-    const cropWidth = Math.max(1, Math.round(cropRect.width * baseWidth))
-    const cropHeight = Math.max(1, Math.round(cropRect.height * baseHeight))
+    // Opening the crop tab starts from the applied crop, so it can be adjusted again.
+    setActiveTab: (tab) => {
+      set((state) => ({
+        activeTab: tab,
+        cropRect: tab === 'crop' ? state.crop ?? createDefaultCropRect() : state.cropRect,
+      }))
+    },
 
-    const clampedX = Math.min(Math.max(0, cropX), baseWidth - 1)
-    const clampedY = Math.min(Math.max(0, cropY), baseHeight - 1)
-    const clampedW = Math.min(cropWidth, baseWidth - clampedX)
-    const clampedH = Math.min(cropHeight, baseHeight - clampedY)
+    setCropRect: (rect) => {
+      set({ cropRect: clampCropRect(rect) })
+    },
 
-    const cropped = new ImageData(clampedW, clampedH)
-    const source = originalImageData.data
-    const dest = cropped.data
+    setCropAspect: (aspect) => {
+      set((state) => ({
+        cropAspect: aspect,
+        cropRect: fitRectToAspect(state.cropRect, aspect, state.dimensions),
+      }))
+    },
 
-    for (let y = 0; y < clampedH; y++) {
-      const srcStart = ((clampedY + y) * baseWidth + clampedX) * 4
-      const destStart = y * clampedW * 4
-      dest.set(source.slice(srcStart, srcStart + clampedW * 4), destStart)
-    }
+    resetCrop: () => {
+      set({ crop: null, cropRect: createDefaultCropRect(), cropAspect: 'free' })
+      get().commitHistory()
+    },
 
-    const canvas = document.createElement('canvas')
-    canvas.width = clampedW
-    canvas.height = clampedH
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.putImageData(cropped, 0, 0)
+    applyCrop: () => {
+      set((state) => ({ crop: state.cropRect, activeTab: 'adjust' }))
+      get().commitHistory()
+    },
 
-    const dataUrl = canvas.toDataURL(fileType || 'image/png')
+    setShowExportModal: (show) => {
+      set({ showExportModal: show })
+    },
 
-    const newImage = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image()
-      img.onload = () => resolve(img)
-      img.onerror = (err) => reject(err)
-      img.src = dataUrl
-    })
-
-    set({
-      currentImage: newImage,
-      originalImageData: cropped,
-      dimensions: { width: clampedW, height: clampedH },
-      cropRect: createDefaultCropRect(),
-    })
-  },
-
-  setShowExportModal: (show) => {
-    set({ showExportModal: show })
-  },
-
-  setIsProcessing: (processing) => {
-    set({ isProcessing: processing })
-  },
-}))
+    setIsProcessing: (processing) => {
+      set({ isProcessing: processing })
+    },
+  }
+})

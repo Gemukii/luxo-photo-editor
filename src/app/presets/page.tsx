@@ -29,7 +29,7 @@ const actions = [
   )},
 ]
 
-const sampleImage = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80'
+const sampleImage = '/preset-sample.svg'
 
 const presetItems: Preset[] = [
   { id: 'golden-hour', name: 'Golden Hour', category: 'Landscape', image: sampleImage },

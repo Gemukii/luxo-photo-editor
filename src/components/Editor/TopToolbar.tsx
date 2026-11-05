@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useEditorStore } from '@/store/editorStore'
+import { OpenImageButton } from './OpenImageButton'
 
 export const TopToolbar: React.FC = () => {
   const { 
@@ -29,13 +30,13 @@ export const TopToolbar: React.FC = () => {
       }
 
       // Cmd/Ctrl + Z for undo
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault()
         if (canUndo) undo()
       }
 
       // Cmd/Ctrl + Shift + Z for redo
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && e.shiftKey) {
         e.preventDefault()
         if (canRedo) redo()
       }
@@ -96,17 +97,15 @@ export const TopToolbar: React.FC = () => {
             </svg>
           </button>
 
+          <OpenImageButton className="px-5 h-12 rounded-full border border-slate-300 text-slate-800 bg-white/90 hover:shadow-md transition-all font-semibold inline-flex items-center">
+            Open image
+          </OpenImageButton>
+
           <Link
             href="/presets"
             className="px-5 h-12 rounded-full border border-slate-300 text-slate-800 bg-white/90 hover:shadow-md transition-all font-semibold inline-flex items-center"
           >
             Go to presets
-          </Link>
-          <Link
-            href="/logout"
-            className="px-4 h-12 rounded-full border border-rose-200 text-rose-600 bg-white/90 hover:shadow-md transition-all font-semibold inline-flex items-center"
-          >
-            Sign out
           </Link>
 
           <button
