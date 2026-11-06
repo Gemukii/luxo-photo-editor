@@ -1,186 +1,142 @@
 'use client'
-import React, { useState } from 'react'
-import { useEditorStore } from '@/store/editorStore'
+import React, { useEffect, useState } from 'react'
 import { Button } from '@/components/UI/Button'
 import { croppedSize } from '@/lib/crop'
-import { renderEdit } from '@/lib/imageProcessor'
+import { getLook } from '@/lib/looks/catalog'
+import { loadLookLut } from '@/lib/looks/loadLut'
+import { ExportFormat, exportImage } from '@/lib/render/exportImage'
+import { resolveEdit } from '@/lib/render/resolveEdit'
+import { useEditorStore } from '@/store/editorStore'
 
-type ExportFormat = 'jpeg' | 'png'
+const FORMATS: { id: ExportFormat; label: string; hint: string }[] = [
+  { id: 'jpeg', label: 'JPEG', hint: 'Smaller file' },
+  { id: 'png', label: 'PNG', hint: 'Lossless' },
+]
 
 export const ExportModal: React.FC = () => {
-  const {
-    showExportModal,
-    setShowExportModal,
-    currentImage,
-    originalImageData,
-    adjustments,
-    crop,
-    dimensions,
-    fileName,
-  } = useEditorStore()
+  const showExportModal = useEditorStore((state) => state.showExportModal)
+  const setShowExportModal = useEditorStore((state) => state.setShowExportModal)
+  const setNotice = useEditorStore((state) => state.setNotice)
+  const currentImage = useEditorStore((state) => state.currentImage)
+  const adjustments = useEditorStore((state) => state.adjustments)
+  const crop = useEditorStore((state) => state.crop)
+  const look = useEditorStore((state) => state.look)
+  const dimensions = useEditorStore((state) => state.dimensions)
+  const fileName = useEditorStore((state) => state.fileName)
+
   const [format, setFormat] = useState<ExportFormat>('jpeg')
   const [quality, setQuality] = useState(90)
   const [isExporting, setIsExporting] = useState(false)
 
-  if (!showExportModal || !currentImage || !originalImageData) return null
+  useEffect(() => {
+    if (!showExportModal) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowExportModal(false)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showExportModal, setShowExportModal])
+
+  if (!showExportModal || !currentImage) return null
 
   const outputSize = croppedSize(dimensions, crop)
-
-  const estimatedSize = () => {
-    const pixels = outputSize.width * outputSize.height
-    if (format === 'png') {
-      return ((pixels * 3) / 1024 / 1024).toFixed(1) + ' MB'
-    }
-    const compressionRatio = quality / 100
-    return ((pixels * 3 * compressionRatio * 0.1) / 1024 / 1024).toFixed(1) + ' MB'
-  }
 
   const handleExport = async () => {
     setIsExporting(true)
 
-    // Let the spinner paint before the render blocks the main thread
+    // Let the spinner paint before the render starts
     await new Promise((resolve) => setTimeout(resolve))
 
     try {
-      // Rendered from the source, so view state such as comparison cannot leak in
-      const rendered = renderEdit(originalImageData, adjustments, crop)
+      const activeLook = getLook(look?.id)
+      const lut = activeLook ? await loadLookLut(activeLook) : null
+      const edit = resolveEdit(adjustments, crop, look, lut ?? null)
+      const blob = await exportImage(currentImage, edit, format, quality)
 
-      const canvas = document.createElement('canvas')
-      canvas.width = rendered.width
-      canvas.height = rendered.height
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('Failed to get canvas context')
-
-      ctx.putImageData(rendered, 0, 0)
-
-      const blob = await new Promise<Blob | null>((resolve) => {
-        if (format === 'jpeg') {
-          canvas.toBlob(resolve, 'image/jpeg', quality / 100)
-        } else {
-          canvas.toBlob(resolve, 'image/png')
-        }
-      })
-
-      if (!blob) throw new Error('Failed to create blob')
-
-      // Download
       const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const baseName = fileName.replace(/\.[^/.]+$/, '')
-      a.download = `${baseName}_edited.${format}`
-      a.click()
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${fileName.replace(/\.[^/.]+$/, '')}_edited.${format === 'jpeg' ? 'jpg' : 'png'}`
+      link.click()
       URL.revokeObjectURL(url)
 
       setShowExportModal(false)
     } catch (error) {
       console.error('Export error:', error)
-      alert('Failed to export image. Please try again.')
+      setNotice('The export failed. Please try again.')
     } finally {
       setIsExporting(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Export Image</h2>
-          <button
-            onClick={() => setShowExportModal(false)}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-sumi-950/75 p-4"
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget && !isExporting) setShowExportModal(false)
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="export-title"
+        className="w-full max-w-sm rounded-xl border border-sumi-600 bg-sumi-800 p-6 shadow-2xl"
+      >
+        <h2 id="export-title" className="font-serif text-xl text-gofun">
+          Export photo
+        </h2>
+        <p className="mt-1 text-sm tabular-nums text-nezumi">
+          {outputSize.width} × {outputSize.height} px
+        </p>
 
-        {/* Format Selection */}
-        <div className="mb-6">
-          <label className="text-sm font-medium text-gray-700 mb-3 block">
-            Format
-          </label>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          {FORMATS.map(({ id, label, hint }) => (
             <button
-              onClick={() => setFormat('jpeg')}
-              className={`p-4 rounded-xl border-2 transition-all ${
-                format === 'jpeg'
-                  ? 'border-blue-500 bg-blue-50 shadow-sm'
-                  : 'border-gray-200 hover:border-gray-300'
+              key={id}
+              type="button"
+              onClick={() => setFormat(id)}
+              aria-pressed={format === id}
+              className={`rounded-lg border p-3 text-left transition-colors ${
+                format === id ? 'border-kincha bg-sumi-700' : 'border-sumi-600 hover:border-sumi-500'
               }`}
             >
-              <div className="font-semibold text-gray-900">JPEG</div>
-              <div className="text-xs text-gray-500 mt-1">Smaller size</div>
+              <span className="block text-sm font-medium text-gofun">{label}</span>
+              <span className="block text-xs text-nezumi">{hint}</span>
             </button>
-            <button
-              onClick={() => setFormat('png')}
-              className={`p-4 rounded-xl border-2 transition-all ${
-                format === 'png'
-                  ? 'border-blue-500 bg-blue-50 shadow-sm'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="font-semibold text-gray-900">PNG</div>
-              <div className="text-xs text-gray-500 mt-1">Lossless</div>
-            </button>
-          </div>
+          ))}
         </div>
 
-        {/* Quality Slider (JPEG only) */}
         {format === 'jpeg' && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-medium text-gray-700">
-                Quality
-              </label>
-              <span className="text-sm font-semibold text-gray-900">{quality}%</span>
-            </div>
+          <label className="mt-5 block">
+            <span className="flex items-center justify-between text-sm text-kinari">
+              Quality
+              <span className="tabular-nums text-gofun">{quality}%</span>
+            </span>
             <input
               type="range"
               min={60}
               max={100}
               value={quality}
               onChange={(e) => setQuality(parseInt(e.target.value))}
-              className="w-full"
+              className="mt-2 w-full accent-kincha"
             />
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>Smaller</span>
-              <span>Better quality</span>
-            </div>
-          </div>
+          </label>
         )}
 
-        {/* File Size Estimate */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-xl">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Estimated size:</span>
-            <span className="text-lg font-semibold text-gray-900">{estimatedSize()}</span>
-          </div>
-        </div>
+        <p className="mt-4 text-xs leading-relaxed text-nezumi">
+          Your original file stays unchanged. Camera data such as EXIF and GPS is not copied.
+        </p>
 
-        {/* Export Button */}
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={handleExport}
-          disabled={isExporting}
-          className="w-full"
-        >
-          {isExporting ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-              Exporting...
-            </>
-          ) : (
-            <>
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Export Image
-            </>
-          )}
-        </Button>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button onClick={() => setShowExportModal(false)} disabled={isExporting}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleExport} disabled={isExporting}>
+            {isExporting ? 'Exporting…' : 'Export'}
+          </Button>
+        </div>
       </div>
     </div>
   )

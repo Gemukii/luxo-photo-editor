@@ -1,5 +1,7 @@
-import { Adjustments, CropRect } from '@/types/editor.types'
+import { Adjustments } from '@/types/editor.types'
 import { cropImageData } from '@/lib/crop'
+import { Lut } from '@/lib/looks/cube'
+import { RenderEdit } from '@/lib/render/types'
 
 export const applyAdjustments = (
   imageData: ImageData,
@@ -121,12 +123,60 @@ export const applyAdjustments = (
   return result
 }
 
-/** Renders an edit from the untouched source. Display and export both use this. */
-export const renderEdit = (
-  source: ImageData,
-  adjustments: Adjustments,
-  crop: CropRect | null
-): ImageData => applyAdjustments(cropImageData(source, crop), adjustments)
+/** Trilinear lookup in a 3D LUT. Takes and returns values from 0 to 1. */
+export const sampleLut = (lut: Lut, r: number, g: number, b: number): [number, number, number] => {
+  const { size, data } = lut
+  const last = size - 1
+
+  const position = (value: number) => {
+    const scaled = Math.max(0, Math.min(1, value)) * last
+    const low = Math.min(Math.floor(scaled), last - 1)
+    return [low, scaled - low] as const
+  }
+
+  const [r0, rt] = position(r)
+  const [g0, gt] = position(g)
+  const [b0, bt] = position(b)
+
+  const result: [number, number, number] = [0, 0, 0]
+
+  for (let corner = 0; corner < 8; corner++) {
+    const dr = corner & 1
+    const dg = (corner >> 1) & 1
+    const db = (corner >> 2) & 1
+    const weight = (dr ? rt : 1 - rt) * (dg ? gt : 1 - gt) * (db ? bt : 1 - bt)
+    const index = (((b0 + db) * size + g0 + dg) * size + r0 + dr) * 3
+
+    result[0] += data[index] * weight
+    result[1] += data[index + 1] * weight
+    result[2] += data[index + 2] * weight
+  }
+
+  return result
+}
+
+export const applyLut = (imageData: ImageData, lut: Lut, mix: number): ImageData => {
+  const result = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height)
+  const pixels = result.data
+
+  for (let i = 0; i < pixels.length; i += 4) {
+    const [r, g, b] = sampleLut(lut, pixels[i] / 255, pixels[i + 1] / 255, pixels[i + 2] / 255)
+    pixels[i] += (r * 255 - pixels[i]) * mix
+    pixels[i + 1] += (g * 255 - pixels[i + 1]) * mix
+    pixels[i + 2] += (b * 255 - pixels[i + 2]) * mix
+  }
+
+  return result
+}
+
+/**
+ * Renders an edit from the untouched source on the CPU.
+ * This is the reference for the GPU renderer, and the fallback without WebGL2.
+ */
+export const renderEdit = (source: ImageData, edit: RenderEdit): ImageData => {
+  const adjusted = applyAdjustments(cropImageData(source, edit.crop), edit.adjustments)
+  return edit.lut && edit.lutMix > 0 ? applyLut(adjusted, edit.lut, edit.lutMix) : adjusted
+}
 
 /** Nearest-neighbour downscale, used for the histogram. */
 export const downsampleImageData = (source: ImageData, maxWidth: number): ImageData => {

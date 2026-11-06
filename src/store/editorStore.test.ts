@@ -105,6 +105,16 @@ describe('crop', () => {
     expect(store().cropRect).toEqual(frame)
   })
 
+  it('keeps the chosen ratio when returning to the crop tab', () => {
+    store().setActiveTab('crop')
+    store().setCropAspect('1:1')
+    store().setActiveTab('adjust')
+    store().setActiveTab('crop')
+
+    const { cropRect } = store()
+    expect(cropRect.width * image.width).toBeCloseTo(cropRect.height * image.height)
+  })
+
   it('does not apply a frame that was left without confirming', () => {
     store().setActiveTab('crop')
     store().setCropRect(frame)
@@ -119,6 +129,51 @@ describe('crop', () => {
     applyFrame()
 
     expect(store().adjustments.contrast).toBe(20)
+  })
+})
+
+describe('looks', () => {
+  it('applies a look at full strength', () => {
+    store().setLook('silver')
+    expect(store().look).toEqual({ id: 'silver', strength: 1 })
+  })
+
+  it('keeps the strength when switching looks', () => {
+    store().setLook('silver')
+    store().setLookStrength(0.4)
+    store().commitHistory()
+    store().setLook('cinema')
+
+    expect(store().look).toEqual({ id: 'cinema', strength: 0.4 })
+  })
+
+  it('does not touch the user adjustments', () => {
+    store().updateAdjustment('contrast', 20)
+    store().commitHistory()
+    store().setLook('silver')
+    store().setLook(null)
+
+    expect(store().adjustments.contrast).toBe(20)
+  })
+
+  it('can be undone', () => {
+    store().setLook('silver')
+    store().undo()
+    expect(store().look).toBeNull()
+
+    store().redo()
+    expect(store().look?.id).toBe('silver')
+  })
+
+  it('records one undo step per strength gesture', () => {
+    store().setLook('silver')
+    const steps = store().history.length
+
+    store().setLookStrength(0.9)
+    store().setLookStrength(0.8)
+    store().commitHistory()
+
+    expect(store().history).toHaveLength(steps + 1)
   })
 })
 
@@ -138,6 +193,6 @@ describe('importFile', () => {
   it('shows a message for an unsupported file', async () => {
     await store().importFile({ name: 'IMG_0001.CR2', type: '', size: 1 } as File)
 
-    expect(store().importError).toMatch(/RAW/)
+    expect(store().notice).toMatch(/RAW/)
   })
 })

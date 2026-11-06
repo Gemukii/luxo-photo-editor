@@ -16,6 +16,7 @@ export const MAX_HISTORY = 30
 const createInitialSnapshot = (): EditSnapshot => ({
   adjustments: { ...defaultAdjustments },
   crop: null,
+  look: null,
 })
 
 const isSameSnapshot = (a: EditSnapshot, b: EditSnapshot) =>
@@ -27,6 +28,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     set({
       adjustments: snapshot.adjustments,
       crop: snapshot.crop,
+      look: snapshot.look,
       cropRect: snapshot.crop ?? createDefaultCropRect(),
       historyIndex: index,
     })
@@ -35,7 +37,6 @@ export const useEditorStore = create<EditorState>((set, get) => {
   return {
     // Initial state
     currentImage: null,
-    originalImageData: null,
     previewImageData: null,
     fileName: '',
     fileSize: 0,
@@ -43,26 +44,26 @@ export const useEditorStore = create<EditorState>((set, get) => {
     dimensions: { width: 0, height: 0 },
     adjustments: { ...defaultAdjustments },
     crop: null,
+    look: null,
     history: [createInitialSnapshot()],
     historyIndex: 0,
     isLoading: false,
-    isProcessing: false,
-    importError: null,
+    notice: null,
     showComparison: false,
-    comparisonMode: 'split',
-    activeTab: 'adjust',
+    comparisonSplit: 0.5,
+    activeTab: 'looks',
     cropRect: createDefaultCropRect(),
     cropAspect: 'free',
     showExportModal: false,
 
     importFile: async (file) => {
-      const importError = getImportError(file)
-      if (importError) {
-        set({ importError })
+      const notice = getImportError(file)
+      if (notice) {
+        set({ notice })
         return
       }
 
-      set({ isLoading: true, importError: null })
+      set({ isLoading: true, notice: null })
 
       try {
         const { image, fileName, fileSize } = await loadImageFromFile(file)
@@ -71,19 +72,18 @@ export const useEditorStore = create<EditorState>((set, get) => {
         console.error('Error loading image:', error)
         set({
           isLoading: false,
-          importError: 'This image could not be opened. Please try another file.',
+          notice: 'This image could not be opened. Please try another file.',
         })
       }
     },
 
-    clearImportError: () => {
-      set({ importError: null })
+    setNotice: (notice) => {
+      set({ notice })
     },
 
     setImage: (image, fileName, fileSize, fileType) => {
       set({
         currentImage: image,
-        originalImageData: null,
         previewImageData: null,
         fileName,
         fileSize,
@@ -92,16 +92,19 @@ export const useEditorStore = create<EditorState>((set, get) => {
         isLoading: false,
         adjustments: { ...defaultAdjustments },
         crop: null,
+        look: null,
         history: [createInitialSnapshot()],
         historyIndex: 0,
-        activeTab: 'adjust',
+        showComparison: false,
+        comparisonSplit: 0.5,
+        activeTab: 'looks',
         cropRect: createDefaultCropRect(),
         cropAspect: 'free',
       })
     },
 
     setPreviewImageData: (data) => {
-      set({ previewImageData: data, isProcessing: false })
+      set({ previewImageData: data })
     },
 
     // Updates the live value only. Call commitHistory when the gesture ends.
@@ -110,8 +113,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     commitHistory: () => {
-      const { adjustments, crop, history, historyIndex } = get()
-      const snapshot: EditSnapshot = { adjustments, crop }
+      const { adjustments, crop, look, history, historyIndex } = get()
+      const snapshot: EditSnapshot = { adjustments, crop, look }
 
       if (isSameSnapshot(snapshot, history[historyIndex])) return
 
@@ -129,6 +132,18 @@ export const useEditorStore = create<EditorState>((set, get) => {
       get().commitHistory()
     },
 
+    setLook: (id) => {
+      set((state) => ({
+        look: id ? { id, strength: state.look?.strength ?? 1 } : null,
+      }))
+      get().commitHistory()
+    },
+
+    // Updates the live value only. Call commitHistory when the gesture ends.
+    setLookStrength: (strength) => {
+      set((state) => ({ look: state.look ? { ...state.look, strength } : null }))
+    },
+
     undo: () => {
       get().commitHistory()
       const { historyIndex } = get()
@@ -144,15 +159,18 @@ export const useEditorStore = create<EditorState>((set, get) => {
       set((state) => ({ showComparison: !state.showComparison }))
     },
 
-    setComparisonMode: (mode) => {
-      set({ comparisonMode: mode })
+    setComparisonSplit: (split) => {
+      set({ comparisonSplit: Math.max(0, Math.min(1, split)) })
     },
 
     // Opening the crop tab starts from the applied crop, so it can be adjusted again.
     setActiveTab: (tab) => {
       set((state) => ({
         activeTab: tab,
-        cropRect: tab === 'crop' ? state.crop ?? createDefaultCropRect() : state.cropRect,
+        cropRect:
+          tab === 'crop'
+            ? fitRectToAspect(state.crop ?? createDefaultCropRect(), state.cropAspect, state.dimensions)
+            : state.cropRect,
       }))
     },
 
@@ -179,10 +197,6 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     setShowExportModal: (show) => {
       set({ showExportModal: show })
-    },
-
-    setIsProcessing: (processing) => {
-      set({ isProcessing: processing })
     },
   }
 })

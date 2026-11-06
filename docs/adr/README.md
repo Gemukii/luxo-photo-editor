@@ -18,13 +18,14 @@ The product, its code, and its documentation are in English only.
 | [0001](0001-local-first-browser-processing.md) | Local-first, browser-only image processing | Accepted |
 | [0002](0002-nextjs-react-zustand-stack.md) | Next.js, React, Tailwind and Zustand stack | Accepted |
 | [0003](0003-parametric-non-destructive-edits.md) | Parametric, non-destructive edit model | Accepted, amended by 0010 |
-| [0004](0004-canvas2d-cpu-pipeline.md) | Canvas 2D pixel pipeline on the main thread | Accepted, to be superseded by 0008 once it is implemented |
+| [0004](0004-canvas2d-cpu-pipeline.md) | Canvas 2D pixel pipeline on the main thread | Superseded by 0008 |
 | [0005](0005-browser-native-decode-and-export.md) | Browser-native decoding and 8-bit export | Accepted |
 | [0006](0006-single-admin-login-gate.md) | Single-admin login gate | Superseded by 0009 |
-| [0007](0007-looks-presets-and-3d-luts.md) | Looks: presets combined with 3D LUTs | Accepted, not yet implemented |
-| [0008](0008-webgl2-render-pipeline.md) | WebGL2 render pipeline with preview proxy | Accepted, not yet implemented |
+| [0007](0007-looks-presets-and-3d-luts.md) | Looks: presets combined with 3D LUTs | Accepted, first phase implemented |
+| [0008](0008-webgl2-render-pipeline.md) | WebGL2 render pipeline with preview proxy | Accepted, implemented |
 | [0009](0009-remove-login-gate.md) | Remove the login gate | Accepted |
 | [0010](0010-non-destructive-crop-and-gesture-history.md) | Non-destructive crop and per-gesture history | Accepted |
+| [0011](0011-looks-first-ui-and-japanese-palette.md) | Looks-first interface and Japanese colour palette | Accepted |
 
 ## Current architecture
 
@@ -32,23 +33,25 @@ The product, its code, and its documentation are in English only.
 Browser (all image data stays here)
   File picker or drag and drop -> imageLoader -> HTMLImageElement
                                                        |
-                                                       v
-  EditorCanvas -> originalImageData (full-size RGBA, 8-bit, never replaced)
-                                                       |
-  Zustand store: adjustments + crop ---> render (CPU, main thread)
-                                           |                     |
-                                           v                     v
-                                     visible <canvas>     ExportModal (renderEdit)
-                                           |                     |
-                                           v                     v
-                                   320 px preview          JPEG / PNG download
-                                           |
-                                           v
-                                       Histogram
+                  +------------------------------------+
+                  |                                    |
+                  v                                    v
+         Preview proxy (2560 px)              Full-size source
+                  |                                    |
+  Zustand store: adjustments + crop + look             |
+                  |        |                           |
+                  |        +---> .cube LUT             |
+                  v                                    v
+       Renderer (WebGL2, or CPU fallback)     exportImage (tiles of 4096 px)
+           |                |                          |
+           v                v                          v
+     visible canvas     Histogram               JPEG / PNG download
+
+  LooksPanel: separate small renderer -> live thumbnails
 
 Next.js (static pages, no image data)
-  /         the editor
-  /presets  client-side mock-up, not connected to the editor
+  /            the editor
+  /dev/parity  GPU checks, in development only
 ```
 
 ## Planned features versus the code
@@ -57,12 +60,11 @@ The root `README.md` lists only what exists today, and its roadmap lists what do
 
 | Feature | State of the code | ADR |
 |---------|-------------------|-----|
-| One-click looks, filters and LUTs | Not implemented: `/presets` is static mock data, and the Presets tab shows the Adjust panel | 0007 |
-| Instant feedback on large photos | CPU loop on the main thread, about 0.9 to 3.1 s per change at 24 MP | 0004, 0008 |
+| Importing `.cube` files, saving and sharing looks | Not implemented: second phase of ADR-0007 | 0007 |
 | RAW support | Not implemented: only formats the browser decodes, with a clear message for RAW files | 0005 |
 | 16-bit export and metadata preservation | Not implemented | 0005 |
 | Export resize options | Not implemented | 0005 |
-| Retouch, Curves, Text and Frames tools | Sidebar buttons with no action | - |
+| Rotation, curves, local retouching | Not implemented | - |
 
 ## Maintaining these records
 
@@ -79,6 +81,8 @@ The root `README.md` lists only what exists today, and its roadmap lists what do
 - Records are immutable once accepted, except for status, links, ticking action items, and dated corrections of factual errors. To change a decision, write a new ADR and mark the old one `Superseded by ADR-NNNN`.
 - Status values are `Proposed`, `Accepted`, `Deprecated` and `Superseded`.
 - A `Proposed` ADR becomes `Accepted` only when the project owner approves it.
+- Before a significant change, check whether an ADR covers it. If the change contradicts an accepted ADR, raise it before going ahead.
+- Keep the ADRs current as part of the work: when something is finished, tick the matching action items and update this page.
 
 ## About the retroactive records
 

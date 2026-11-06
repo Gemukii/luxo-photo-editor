@@ -66,4 +66,4 @@ Option A is the only one that removes the exception rather than working around i
 1. [x] Add `crop` to the edit state and to history.
 2. [x] Render display and export from the source.
 3. [x] Commit history per gesture.
-4. [ ] Add `look` to `EditSnapshot` when ADR-0007 is implemented.
+4. [x] Add `look` to `EditSnapshot` when ADR-0007 is implemented.

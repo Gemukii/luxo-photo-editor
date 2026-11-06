@@ -1,6 +1,6 @@
 # ADR-0007: Looks: presets combined with 3D LUTs
 
-**Status:** Accepted (2026-11-05)
+**Status:** Accepted (2026-11-05), first phase implemented
 **Date:** 2026-11-05
 **Deciders:** Gemukii
 
@@ -105,8 +105,8 @@ Applying a LUT costs more per pixel than the current sliders, which are already 
 ## Action Items
 
 1. [x] Project owner: accept or amend this ADR.
-2. [ ] Add `look` to the edit state and to `EditSnapshot`.
-3. [ ] Write and test a `.cube` parser, rejecting 1D LUTs and malformed files with a clear message.
-4. [ ] Build the gallery and Strength slider in the Presets tab.
-5. [ ] Create a first set of 8 to 12 Looks, with clear licensing.
+2. [x] Add `look` to the edit state and to `EditSnapshot`.
+3. [x] Write and test a `.cube` parser, rejecting 1D LUTs and malformed files with a clear message.
+4. [x] Build the gallery and Strength slider in the Presets tab.
+5. [x] Create a first set of 8 to 12 Looks, with clear licensing. The first set has 11 Looks. `scripts/generate-luts.mjs` defines the 8 LUTs, so the project owns them. They still need tuning on real photos.
 6. [ ] Second phase: import `.cube` files, save custom Looks, and export Looks as JSON.

@@ -1,102 +1,69 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 
 interface HistogramProps {
   imageData: ImageData | null
 }
 
+const WIDTH = 300
+const HEIGHT = 84
+
+const CHANNELS = [
+  { offset: 0, color: 'rgba(224, 105, 77, 0.75)' },
+  { offset: 1, color: 'rgba(109, 156, 115, 0.75)' },
+  { offset: 2, color: 'rgba(79, 159, 166, 0.75)' },
+]
+
 export const Histogram: React.FC<HistogramProps> = ({ imageData }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    if (!imageData || !canvasRef.current) return
-
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d', { alpha: false })
+    const ctx = canvasRef.current?.getContext('2d')
     if (!ctx) return
 
-    // Calculate histogram
-    const r = new Array(256).fill(0)
-    const g = new Array(256).fill(0)
-    const b = new Array(256).fill(0)
+    ctx.clearRect(0, 0, WIDTH, HEIGHT)
+    if (!imageData) return
 
-    const data = imageData.data
+    const bins = CHANNELS.map(() => new Uint32Array(256))
+    const { data } = imageData
+
     for (let i = 0; i < data.length; i += 4) {
-      r[data[i]]++
-      g[data[i + 1]]++
-      b[data[i + 2]]++
+      bins[0][data[i]]++
+      bins[1][data[i + 1]]++
+      bins[2][data[i + 2]]++
     }
 
-    // Find max for scaling
-    const max = Math.max(...r, ...g, ...b)
+    // Square-root scale, so that one dominant tone does not flatten the others
+    const peak = Math.sqrt(Math.max(...bins.map((channel) => Math.max(...channel)))) || 1
 
-    // Clear canvas
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.globalCompositeOperation = 'lighter'
 
-    // Draw grid lines
-    ctx.strokeStyle = '#f3f4f6'
-    ctx.lineWidth = 1
-    for (let i = 1; i < 4; i++) {
-      const y = (canvas.height / 4) * i
+    CHANNELS.forEach(({ color }, index) => {
+      ctx.fillStyle = color
       ctx.beginPath()
-      ctx.moveTo(0, y)
-      ctx.lineTo(canvas.width, y)
-      ctx.stroke()
-    }
+      ctx.moveTo(0, HEIGHT)
 
-    // Draw histograms
-    const drawChannel = (data: number[], color: string) => {
-      ctx.strokeStyle = color
-      ctx.lineWidth = 1.5
-      ctx.beginPath()
-      
       for (let i = 0; i < 256; i++) {
-        const x = (i / 256) * canvas.width
-        const y = canvas.height - (data[i] / max) * canvas.height * 0.9
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
+        const x = (i / 255) * WIDTH
+        ctx.lineTo(x, HEIGHT - (Math.sqrt(bins[index][i]) / peak) * (HEIGHT - 4))
       }
-      ctx.stroke()
-    }
 
-    ctx.globalAlpha = 0.6
-    drawChannel(r, '#ef4444') // Red
-    drawChannel(g, '#10b981') // Green
-    drawChannel(b, '#3b82f6') // Blue
-    ctx.globalAlpha = 1
+      ctx.lineTo(WIDTH, HEIGHT)
+      ctx.closePath()
+      ctx.fill()
+    })
 
-    // Border
-    ctx.strokeStyle = '#e5e7eb'
-    ctx.lineWidth = 1
-    ctx.strokeRect(0, 0, canvas.width, canvas.height)
-
+    ctx.globalCompositeOperation = 'source-over'
   }, [imageData])
 
-  if (!imageData) {
-    return (
-      <div className="mb-6">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-          Histogram
-        </h3>
-        <div className="w-full h-20 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center">
-          <span className="text-xs text-gray-400">No data</span>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="mb-6">
-      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-        Histogram
-      </h3>
-      <canvas
-        ref={canvasRef}
-        width={280}
-        height={80}
-        className="w-full rounded-lg"
-      />
-    </div>
+    <canvas
+      ref={canvasRef}
+      width={WIDTH}
+      height={HEIGHT}
+      role="img"
+      aria-label="RGB histogram of the edited photo"
+      className="block h-[84px] w-full rounded-md bg-sumi-900"
+    />
   )
 }

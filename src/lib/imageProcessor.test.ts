@@ -56,11 +56,12 @@ describe('applyAdjustments', () => {
 
 describe('renderEdit', () => {
   it('applies the crop and the adjustments', () => {
-    const result = renderEdit(
-      solid(50, 50, 50, 4, 4),
-      { ...defaultAdjustments, exposure: 1 },
-      { x: 0, y: 0, width: 0.5, height: 0.5 }
-    )
+    const result = renderEdit(solid(50, 50, 50, 4, 4), {
+      adjustments: { ...defaultAdjustments, exposure: 1 },
+      crop: { x: 0, y: 0, width: 0.5, height: 0.5 },
+      lut: null,
+      lutMix: 0,
+    })
 
     expect([result.width, result.height]).toEqual([2, 2])
     expect(firstPixel(result)).toEqual([100, 100, 100, 255])

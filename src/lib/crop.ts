@@ -93,6 +93,53 @@ export const cropImageData = (source: ImageData, crop: CropRect | null): ImageDa
   return result
 }
 
+export type CropHandle = 'move' | 'nw' | 'ne' | 'sw' | 'se'
+
+/**
+ * Applies a drag to a crop frame. A corner drag keeps the opposite corner fixed.
+ * `dx` and `dy` are normalized to the image, and `aspect` comes from `normalizedAspect`.
+ */
+export const dragCropRect = (
+  start: CropRect,
+  handle: CropHandle,
+  dx: number,
+  dy: number,
+  aspect: number | null
+): CropRect => {
+  if (handle === 'move') {
+    return {
+      ...start,
+      x: clamp(start.x + dx, 0, 1 - start.width),
+      y: clamp(start.y + dy, 0, 1 - start.height),
+    }
+  }
+
+  const growsRight = handle.includes('e')
+  const growsDown = handle.includes('s')
+  const anchorX = growsRight ? start.x : start.x + start.width
+  const anchorY = growsDown ? start.y : start.y + start.height
+  const maxWidth = growsRight ? 1 - anchorX : anchorX
+  const maxHeight = growsDown ? 1 - anchorY : anchorY
+
+  let width = clamp(start.width + (growsRight ? dx : -dx), MIN_CROP_SIZE, maxWidth)
+  let height = clamp(start.height + (growsDown ? dy : -dy), MIN_CROP_SIZE, maxHeight)
+
+  if (aspect) {
+    height = width / aspect
+    if (height > maxHeight) {
+      height = maxHeight
+      width = height * aspect
+    }
+  }
+
+  return {
+    x: growsRight ? anchorX : anchorX - width,
+    y: growsDown ? anchorY : anchorY - height,
+    width,
+    height,
+  }
+}
+
 /** Returns the box an image occupies inside a container under `object-fit: contain`. */
 export const fitContain = (container: Size, image: Size) => {
   if (!container.width || !container.height || !image.width || !image.height) {

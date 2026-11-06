@@ -1,6 +1,6 @@
 # ADR-0004: Canvas 2D pixel pipeline on the main thread
 
-**Status:** Accepted, to be superseded by [ADR-0008](0008-webgl2-render-pipeline.md) once it is implemented
+**Status:** Superseded by [ADR-0008](0008-webgl2-render-pipeline.md)
 **Date:** 2026-01-05 (recorded 2026-11-05)
 **Deciders:** Gemukii
 

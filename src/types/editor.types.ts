@@ -21,18 +21,23 @@ export interface CropRect {
   height: number
 }
 
+export interface AppliedLook {
+  id: string
+  strength: number // 0 to 1
+}
+
 /** One undo step: everything needed to render an edit from the source image. */
 export interface EditSnapshot {
   adjustments: Adjustments
   crop: CropRect | null
+  look: AppliedLook | null
 }
 
-export type EditorTab = 'adjust' | 'crop' | 'presets' | 'export'
+export type EditorTab = 'looks' | 'adjust' | 'crop'
 
 export interface EditorState {
   // Image data
   currentImage: HTMLImageElement | null
-  originalImageData: ImageData | null
   previewImageData: ImageData | null
 
   // File info
@@ -44,6 +49,7 @@ export interface EditorState {
   // Edit data
   adjustments: Adjustments
   crop: CropRect | null
+  look: AppliedLook | null
 
   // History for undo/redo
   history: EditSnapshot[]
@@ -51,10 +57,9 @@ export interface EditorState {
 
   // UI state
   isLoading: boolean
-  isProcessing: boolean
-  importError: string | null
+  notice: string | null
   showComparison: boolean
-  comparisonMode: 'split' | 'toggle'
+  comparisonSplit: number
   activeTab: EditorTab
   cropRect: CropRect
   cropAspect: CropAspect
@@ -64,24 +69,25 @@ export interface EditorState {
 
   // Actions
   importFile: (file: File) => Promise<void>
-  clearImportError: () => void
+  setNotice: (notice: string | null) => void
   setImage: (image: HTMLImageElement, fileName: string, fileSize: number, fileType: string) => void
   setPreviewImageData: (data: ImageData | null) => void
   updateAdjustment: (key: keyof Adjustments, value: number) => void
   commitHistory: () => void
   resetAdjustment: (key: keyof Adjustments) => void
   resetAllAdjustments: () => void
+  setLook: (id: string | null) => void
+  setLookStrength: (strength: number) => void
   undo: () => void
   redo: () => void
   toggleComparison: () => void
-  setComparisonMode: (mode: 'split' | 'toggle') => void
+  setComparisonSplit: (split: number) => void
   setActiveTab: (tab: EditorTab) => void
   setCropRect: (rect: CropRect) => void
   setCropAspect: (aspect: CropAspect) => void
   resetCrop: () => void
   applyCrop: () => void
   setShowExportModal: (show: boolean) => void
-  setIsProcessing: (processing: boolean) => void
 }
 
 export const defaultAdjustments: Adjustments = {

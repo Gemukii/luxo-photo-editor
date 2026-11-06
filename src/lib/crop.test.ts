@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   clampCropRect,
   cropImageData,
+  dragCropRect,
   croppedSize,
   fitContain,
   fitRectToAspect,
@@ -82,5 +83,41 @@ describe('fitContain', () => {
       width: 100,
       height: 50,
     })
+  })
+})
+
+describe('dragCropRect', () => {
+  const start = { x: 0.2, y: 0.2, width: 0.4, height: 0.4 }
+
+  it('moves the frame and keeps it inside the image', () => {
+    expect(dragCropRect(start, 'move', 1, -1, null)).toEqual({ ...start, x: 0.6, y: 0 })
+  })
+
+  it('keeps the opposite corner fixed', () => {
+    const rect = dragCropRect(start, 'nw', 0.1, 0.1, null)
+
+    expect(rect.x + rect.width).toBeCloseTo(0.6)
+    expect(rect.y + rect.height).toBeCloseTo(0.6)
+    expect(rect.width).toBeCloseTo(0.3)
+  })
+
+  it('stops at the edge of the image', () => {
+    const rect = dragCropRect(start, 'se', 5, 5, null)
+
+    expect(rect.x + rect.width).toBeCloseTo(1)
+    expect(rect.y + rect.height).toBeCloseTo(1)
+  })
+
+  it('keeps the aspect ratio', () => {
+    const rect = dragCropRect(start, 'se', 0.2, 0, 1)
+    expect(rect.width).toBeCloseTo(rect.height)
+  })
+
+  it('keeps the aspect ratio at the edge of the image', () => {
+    const rect = dragCropRect(start, 'se', 5, 5, 2)
+
+    expect(rect.width / rect.height).toBeCloseTo(2)
+    expect(rect.x + rect.width).toBeLessThanOrEqual(1)
+    expect(rect.y + rect.height).toBeLessThanOrEqual(1)
   })
 })

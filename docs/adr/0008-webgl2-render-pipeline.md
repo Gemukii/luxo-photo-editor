@@ -1,6 +1,6 @@
 # ADR-0008: WebGL2 render pipeline with preview proxy
 
-**Status:** Accepted (2026-11-05), supersedes [ADR-0004](0004-canvas2d-cpu-pipeline.md) once implemented
+**Status:** Accepted (2026-11-05), implemented. Supersedes [ADR-0004](0004-canvas2d-cpu-pipeline.md)
 **Date:** 2026-11-05
 **Deciders:** Gemukii
 
@@ -89,13 +89,27 @@ The main risk is a rewrite with no safety net, as the project has no tests. Gold
 - GPU context loss must be handled, as must very large images on low-end devices.
 - Open question: moving to linear-light processing would give true exposure stops, but it changes how every slider feels. If it is wanted, it should happen before Looks are tuned.
 
+## Measured Results
+
+Measured on 2026-11-05 on the development machine, in the Claude desktop browser pane, with synthetic images. Run `/dev/parity` in development to repeat them.
+
+| Check | Result |
+|-------|--------|
+| GPU against the TypeScript reference, 38 cases | Largest difference: 1 level out of 255 |
+| Preview render, 2560 × 1707, with a LUT | 4 to 7 ms |
+| Full-size render, 24 MP, with a LUT | 1.8 to 2.6 s |
+| Full-size render, 45 MP, with a LUT | 1.3 to 1.5 s |
+| Tile seams at 24 and 45 MP | None: the largest step at a seam (2) is below the image's own largest step (4 to 5) |
+
+The old pipeline took 0.9 to 3.1 s per change at 24 MP, and that time depended on the photo's size. A preview render now takes a few milliseconds, whatever the size of the photo. The first full-size timing in a session runs slower, which is probably why 24 MP took longer than 45 MP.
+
 ## Action Items
 
 1. [x] Project owner: accept or amend this ADR.
 2. [x] Add tests for `applyAdjustments` as the reference implementation.
-3. [ ] Add the preview proxy first, as an immediate gain.
-4. [ ] Build `src/lib/render/`, porting adjustments to GLSL with golden-image tests.
-5. [ ] Add the 3D LUT stage.
-6. [ ] Implement full-size tiled export, and test it at 45 MP.
-7. [ ] Measure real browser timings, and record them here.
+3. [x] Add the preview proxy first, as an immediate gain.
+4. [x] Build `src/lib/render/`, porting adjustments to GLSL with golden-image tests.
+5. [x] Add the 3D LUT stage.
+6. [x] Implement full-size tiled export, and test it at 45 MP.
+7. [x] Measure real browser timings, and record them here.
 8. [ ] Decide on linear-light processing before tuning Looks.

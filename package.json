@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate:luts": "node scripts/generate-luts.mjs"
   },
   "dependencies": {
     "next": "^16.4.5",
